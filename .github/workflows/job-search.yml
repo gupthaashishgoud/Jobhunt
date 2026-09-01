@@ -42,6 +42,7 @@ jobs:
           QUERY="${{ github.event.inputs.search_query || 'Product Operations Manager remote India' }}"
           QUERY2="${{ github.event.inputs.second_query || 'Business Intelligence Analyst remote India' }}"
 
+          {
           echo "========================================"
           echo "  DAILY JOB SEARCH - $(date)"
           echo "========================================"
@@ -64,6 +65,7 @@ jobs:
           echo "========================================"
           echo "  SEARCH COMPLETE"
           echo "========================================"
+          } 2>&1 | tee job_applications/search_results.txt
 
       - name: Save search results artifact
         uses: actions/upload-artifact@v4
