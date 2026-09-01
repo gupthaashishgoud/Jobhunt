@@ -1,0 +1,201 @@
+name: Pipeline Tracker
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'What do you want to do?'
+        required: true
+        type: choice
+        default: 'dashboard'
+        options:
+          - dashboard
+          - add
+          - bulk_add
+          - update
+          - interview
+          - offer
+          - stats
+          - followups
+          - duplicates
+          - search
+      company:
+        description: 'Company name (for add/update/interview/offer/search)'
+        required: false
+        default: ''
+      job_title:
+        description: 'Job title (for add)'
+        required: false
+        default: ''
+      platform:
+        description: 'Platform (LinkedIn/Naukri/Wellfound/Upwork/etc.) for add'
+        required: false
+        default: ''
+      app_id:
+        description: 'Application ID number (for update/interview/offer)'
+        required: false
+        default: ''
+      status:
+        description: 'New status (for update) - APPLIED/RESPONDED/HR_CALL/INTERVIEW_SCHEDULED/INTERVIEW_ROUND_1/INTERVIEW_ROUND_2/INTERVIEW_ROUND_3/OFFER_RECEIVED/OFFER_ACCEPTED/REJECTED/WITHDRAWN'
+        required: false
+        default: ''
+      interview_date:
+        description: 'Interview date YYYY-MM-DD (for interview)'
+        required: false
+        default: ''
+      interview_time:
+        description: 'Interview time e.g. 2:00 PM (for interview)'
+        required: false
+        default: ''
+      interview_round:
+        description: 'Round number 1/2/3/Final (for interview)'
+        required: false
+        default: ''
+      interview_type:
+        description: 'Type: Phone/Video/In-person/Technical/HR (for interview)'
+        required: false
+        default: ''
+      interviewer:
+        description: 'Interviewer name (for interview)'
+        required: false
+        default: ''
+      offer_amount:
+        description: 'Offer amount e.g. Rs 60,000/month (for offer)'
+        required: false
+        default: ''
+      notes:
+        description: 'Notes (for any action)'
+        required: false
+        default: ''
+      bulk_list:
+        description: 'Bulk add: paste companies as comma-separated list (e.g. Razorpay, Freshworks, Zoho). Use with action=bulk_add'
+        required: false
+        default: ''
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pandas
+
+      - name: Run tracker action
+        run: |
+          cat > run_tracker.py << 'PYEOF'
+          import sys
+          import os
+          from tracker import PipelineTracker
+
+          tracker = PipelineTracker("job_pipeline.csv")
+
+          action = os.environ.get("INPUT_ACTION", "dashboard")
+          company = os.environ.get("INPUT_COMPANY", "")
+          job_title = os.environ.get("INPUT_JOB_TITLE", "")
+          platform = os.environ.get("INPUT_PLATFORM", "")
+          app_id = os.environ.get("INPUT_APP_ID", "")
+          status = os.environ.get("INPUT_STATUS", "")
+          interview_date = os.environ.get("INPUT_INTERVIEW_DATE", "")
+          interview_time = os.environ.get("INPUT_INTERVIEW_TIME", "")
+          interview_round = os.environ.get("INPUT_INTERVIEW_ROUND", "")
+          interview_type = os.environ.get("INPUT_INTERVIEW_TYPE", "")
+          interviewer = os.environ.get("INPUT_INTERVIEWER", "")
+          offer_amount = os.environ.get("INPUT_OFFER_AMOUNT", "")
+          notes = os.environ.get("INPUT_NOTES", "")
+          bulk_list = os.environ.get("INPUT_BULK_LIST", "")
+
+          print(f"\n{'='*60}")
+          print(f"  PIPELINE TRACKER - ACTION: {action.upper()}")
+          print(f"{'='*60}\n")
+
+          if action == "dashboard":
+              tracker.dashboard()
+          elif action == "add":
+              if not company:
+                  print("ERROR: Company name is required for add.")
+                  sys.exit(1)
+              tracker.add(company, job_title, platform, "", "", "standard", notes)
+          elif action == "bulk_add":
+              if not bulk_list:
+                  print("ERROR: bulk_list is required for bulk_add.")
+                  sys.exit(1)
+              companies = [c.strip() for c in bulk_list.split(",") if c.strip()]
+              entries = [{"company": c, "job_title": "", "platform": platform} for c in companies]
+              tracker.bulk_add(entries, platform=platform or "")
+          elif action == "update":
+              if not app_id:
+                  print("ERROR: Application ID is required for update.")
+                  sys.exit(1)
+              tracker.update_status(int(app_id), status, notes)
+          elif action == "interview":
+              if not app_id:
+                  print("ERROR: Application ID is required for interview.")
+                  sys.exit(1)
+              tracker.log_interview(int(app_id), interview_date, interview_time, interview_round, interview_type, interviewer, notes)
+          elif action == "offer":
+              if not app_id:
+                  print("ERROR: Application ID is required for offer.")
+                  sys.exit(1)
+              tracker.log_offer(int(app_id), offer_amount, "")
+          elif action == "stats":
+              tracker.stats()
+          elif action == "followups":
+              tracker.followups()
+          elif action == "duplicates":
+              tracker.check_duplicates()
+          elif action == "search":
+              if not company:
+                  print("ERROR: Search query is required.")
+                  sys.exit(1)
+              tracker.search(company)
+          else:
+              print(f"Unknown action: {action}")
+
+          print("\n  Done.\n")
+          PYEOF
+
+          python run_tracker.py
+        env:
+          INPUT_ACTION: ${{ github.event.inputs.action }}
+          INPUT_COMPANY: ${{ github.event.inputs.company }}
+          INPUT_JOB_TITLE: ${{ github.event.inputs.job_title }}
+          INPUT_PLATFORM: ${{ github.event.inputs.platform }}
+          INPUT_APP_ID: ${{ github.event.inputs.app_id }}
+          INPUT_STATUS: ${{ github.event.inputs.status }}
+          INPUT_INTERVIEW_DATE: ${{ github.event.inputs.interview_date }}
+          INPUT_INTERVIEW_TIME: ${{ github.event.inputs.interview_time }}
+          INPUT_INTERVIEW_ROUND: ${{ github.event.inputs.interview_round }}
+          INPUT_INTERVIEW_TYPE: ${{ github.event.inputs.interview_type }}
+          INPUT_INTERVIEWER: ${{ github.event.inputs.interviewer }}
+          INPUT_OFFER_AMOUNT: ${{ github.event.inputs.offer_amount }}
+          INPUT_NOTES: ${{ github.event.inputs.notes }}
+          INPUT_BULK_LIST: ${{ github.event.inputs.bulk_list }}
+
+      - name: Commit updated CSV
+        run: |
+          git config user.name "Job Search Agent"
+          git config user.email "actions@github.com"
+          if [ -f job_pipeline.csv ]; then
+            git add job_pipeline.csv
+            git commit -m "Update job pipeline - ${{ github.event.inputs.action }} [skip ci]" || echo "No changes to commit"
+            git push || echo "Push failed - may be no changes"
+          fi
+
+      - name: Save artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-${{ github.run_id }}
+          path: job_pipeline.csv
+          retention-days: 90
+          if-no-files-found: warn
