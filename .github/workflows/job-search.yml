@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,6 +37,8 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          mkdir -p job_applications/searches
+
           QUERY="${{ github.event.inputs.search_query || 'Product Operations Manager remote India' }}"
           QUERY2="${{ github.event.inputs.second_query || 'Business Intelligence Analyst remote India' }}"
 
