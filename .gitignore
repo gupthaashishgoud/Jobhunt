@@ -1,0 +1,11 @@
+.env
+*.key
+OPENAI_API_KEY*
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+job_applications/searches/
+.DS_Store
+Thumbs.db
